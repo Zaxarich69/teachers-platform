@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Wallet Connection Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.8/dist/index.js"></script>
+    <script src="https://unpkg.com/hashconnect@1.7.0/dist/hashconnect.min.js"></script>
+</head>
+<body>
+    <h1>Wallet Connection Demo</h1>
+    <p>Use the buttons below to connect your preferred wallet or try a payment request.</p>
+
+    <button id="ethConnectButton">Connect Ethereum Wallet</button>
+    <button id="hederaConnectButton">Connect Hedera Wallet</button>
+
+    <h2>Payments</h2>
+    <button id="payButton">Browser Pay</button>
+    <button id="paypalButton">PayPal</button>
+
+    <script>
+        const providerOptions = {
+            walletconnect: {
+                package: window.WalletConnectProvider.default,
+                options: {
+                    rpc: {
+                        1: "https://cloudflare-eth.com"
+                    }
+                }
+            }
+        };
+
+        const web3Modal = new window.Web3Modal.default({
+            cacheProvider: false,
+            providerOptions
+        });
+
+        document.getElementById('ethConnectButton').addEventListener('click', async () => {
+            try {
+                const instance = await web3Modal.connect();
+                const provider = new ethers.providers.Web3Provider(instance);
+                const signer = provider.getSigner();
+                const address = await signer.getAddress();
+                console.log('Connected address:', address);
+                alert('Connected: ' + address);
+            } catch(err) {
+                console.error('Connection failed', err);
+                alert('Connection failed: ' + err.message);
+            }
+        });
+
+        async function connectHashpack() {
+            const hashconnect = new HashConnect(true);
+            const appMetadata = {
+                name: 'Wallet Demo',
+                description: 'Connect to HashPack',
+                icon: window.location.origin + '/favicon.ico'
+            };
+
+            const initData = await hashconnect.init(appMetadata, 'testnet', false);
+            const state = await hashconnect.connect();
+            if (state.pairingData && state.pairingData.accountIds.length > 0) {
+                const account = state.pairingData.accountIds[0];
+                console.log('Hedera account:', account);
+                alert('Connected Hedera account: ' + account);
+            } else {
+                console.log('No Hedera account');
+            }
+            hashconnect.connectToLocalWallet();
+        }
+
+        document.getElementById('hederaConnectButton').addEventListener('click', connectHashpack);
+
+        document.getElementById('payButton').addEventListener('click', async () => {
+            if (!window.PaymentRequest) {
+                alert('PaymentRequest API not supported');
+                return;
+            }
+            const supported = [{ supportedMethods: 'basic-card' }];
+            const details = {
+                total: { label: 'Demo', amount: { currency: 'USD', value: '5.00' } }
+            };
+            try {
+                const request = new PaymentRequest(supported, details);
+                const res = await request.show();
+                await res.complete('success');
+                alert('Payment successful');
+            } catch (err) {
+                console.error(err);
+                alert('Payment failed');
+            }
+        });
+
+        document.getElementById('paypalButton').addEventListener('click', () => {
+            window.open('https://www.paypal.com/signin', '_blank');
+        });
+    </script>
+</body>
+</html>
